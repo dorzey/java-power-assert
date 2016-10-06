@@ -14,7 +14,9 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
+import org.assertj.core.util.Lists;
 import org.powerassert.PowerAssertGenerator;
 
 import javax.annotation.processing.Messager;
@@ -22,7 +24,9 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 
 public class JavacPowerAssertGenerator extends TreePathScanner<TreePath, Context> implements PowerAssertGenerator {
 	// name that likely won't collide with any other
@@ -92,6 +96,37 @@ public class JavacPowerAssertGenerator extends TreePathScanner<TreePath, Context
 						List.<JCTree.JCExpression>nil(),
 						qualifiedName("org", "powerassert", "synthetic", "junit", "Assert", methodName),
 						expressionRecorder.record(meth.getArguments())
+				);
+
+				JCTree.JCExpressionStatement instrumented = treeMaker.Exec(
+						treeMaker.Apply(
+								List.<JCTree.JCExpression>nil(),
+								qualifiedName(RECORDER_RUNTIME, "powerAssert"),
+								List.of(
+										treeMaker.Literal(source(meth)),
+										recorded,
+										treeMaker.Literal(meth.getStartPosition())
+								)
+						)
+				);
+
+				// so that we don't disrupt IDE debugging, give the instrumented expression the same position as the original
+				instrumented.setPos(statement.pos);
+
+				return replaceWithInstrumented(statement, instrumented);
+			}
+			else if(meth.getMethodSelect() instanceof JCTree.JCFieldAccess && (((JCTree.JCFieldAccess)meth.getMethodSelect()).selected.toString()).contains("org.assertj.core.api.Assertions.assertThat")){
+				JavacExpressionRecorder expressionRecorder = new JavacExpressionRecorder();
+				JCTree.JCMethodInvocation selected = (JCTree.JCMethodInvocation) ((JCTree.JCFieldAccess) meth.getMethodSelect()).selected;
+
+				List<JCTree.JCExpression> args = new ListBuffer<JCTree.JCExpression>()
+						.appendList(selected.getArguments())
+						.appendList(meth.getArguments())
+						.toList();
+				JCTree.JCExpression recorded = treeMaker.Apply(
+						List.<JCTree.JCExpression>nil(),
+						qualifiedName("org", "powerassert", "synthetic", "assertj", "AssertThat", methodName),
+						expressionRecorder.record(args)
 				);
 
 				JCTree.JCExpressionStatement instrumented = treeMaker.Exec(

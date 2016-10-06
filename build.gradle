@@ -40,12 +40,12 @@ dependencies {
     compile files("${System.getProperty('java.home')}/../lib/tools.jar")
 
     compile 'junit:junit:latest.release', optional
+    compile 'org.assertj:assertj-core:2.4.1'
 
     shadedCompile 'commons-lang:commons-lang:2.6'
 
     testCompile 'org.ow2.asm:asm:latest.release'
     testCompile 'org.ow2.asm:asm-util:latest.release'
-    testCompile 'org.assertj:assertj-core:2.4.1'
 }
 
 task markSynthetics << {
